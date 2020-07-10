@@ -1,0 +1,51 @@
+//Remember to add the endpoint in a Remote Site Setting. Salesforce will not allow a callout to any random endpoint
+
+public with sharing class WarehouseCalloutService {
+
+    private static final String WAREHOUSE_URL = 'https://th-superbadge-apex.herokuapp.com/equipment';
+    
+    // Methods making a callout must have @future annotation. Remember they are asynchronous in nature.
+    @future(callout=true)
+    public static void runWarehouseEquipmentSync() 
+    {
+        //Step 1: Create a Http Request
+        Http http = new Http();
+		HttpRequest request = new HttpRequest(); 
+        
+        //Step 2: Set the method & Endpoint you want to pass with your request (you can pass more than 1 type of method)
+        request.setMethod('GET');
+        request.setEndpoint(WAREHOUSE_URL);
+        
+        //Step 3: Send request and receive a response for the request
+        HttpResponse response = new HttpResponse();
+        response = http.send(request);
+        
+        //Step 4: Check Connection Status using the HTTP success/failure codes. If Success, parse the JSON and deserialize it
+        if(response.getStatusCode() == 200)
+        {
+            //Step 5: Now that your connection is receiving JSON, capture the JSON in a list (Data is flowing in as js objects)
+            List<Object> jsonResponse = (List<Object>)JSON.deserializeUntyped(response.getBody());
+            system.debug('jsonResponse ==> '+jsonResponse);
+            
+            //Step 6: Time to create Salesforce records from the integration data
+            List<Product2> List_of_Products_From_WarehouseExtSystem = new List<Product2>();
+            for(Object jsonIterator : jsonResponse)
+            {
+                Map<String,Object> Map_Of_JSON = (Map<String,Object>) jsonIterator;
+                //Step 7: For each JSON object, create a Product record
+                Product2 prod = new Product2();
+                prod.Replacement_Part__c =    (Boolean)Map_Of_JSON.get('replacement');
+                prod.Current_Inventory__c=    (Double)Map_Of_JSON.get('quantity');
+                prod.Name =                   (String)Map_Of_JSON.get('name');
+                prod.Maintenance_Cycle__c =   (Integer)Map_Of_JSON.get('maintenanceperiod');
+                prod.Lifespan_Months__c=      (Integer)Map_Of_JSON.get('lifespan');
+                prod.Cost__c =                (Decimal)Map_Of_JSON.get('cost');
+                prod.Warehouse_SKU__c =       (String)Map_Of_JSON.get('sku');
+                List_of_Products_From_WarehouseExtSystem.add(prod);
+            }
+            
+            //Step 8: Insert the list of products created into DB
+            upsert(List_of_Products_From_WarehouseExtSystem);
+        }
+    }
+}
