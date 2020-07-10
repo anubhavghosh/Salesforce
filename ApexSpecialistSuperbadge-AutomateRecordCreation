@@ -1,0 +1,71 @@
+//**TRIGGER LOGIC
+
+
+trigger MaintenanceRequest on Case (before update, after update) 
+{
+    // ToDo: Call MaintenanceRequestHelper.updateWorkOrders
+    Map<Id,Case> Map_Of_Cases= new Map<Id,Case>();
+    List<Case> List_Of_NewCases = new List<Case>();
+    List_Of_NewCases = Trigger.New;
+    if(Trigger.isUpdate && Trigger.isAfter)
+    {
+        for(Case c : List_Of_NewCases)
+        {
+            if( (c.IsClosed && c.Type.equals('Repair')) ||  c.Type.equals('Routine Maintenance'))
+            {
+                Map_Of_Cases.put(c.Id, c);
+            }
+        }
+    }
+    
+    if(Map_Of_Cases.size()>0)
+    {
+        System.debug('*****Call the updateWorkOrders() menthod from the MaintenanceRequestHelper helper class*****');
+        MaintenanceRequestHelper.updateWorkOrders(Map_Of_Cases);  
+    }
+}
+
+
+//**HELPER CLASS
+
+public with sharing class MaintenanceRequestHelper {
+    
+    public static void updateWorkOrders(Map<Id,Case> Applicable_Map_of_Cases) 
+    {
+        System.debug('*******Inside MaintenanceRequestHelper Class*******');
+        Map<Id,Integer> Map_Of_Products = new Map<Id,Integer>();
+        List<Product2> List_of_Products = [SELECT ID, Maintenance_Cycle__c from Product2];
+        List<Case> NewCaseList = new List<Case>();
+       
+        for(Product2 pod : List_of_Products)
+        {
+            if(pod.Maintenance_Cycle__c!=NULL)
+            {
+                System.Debug('Integer Value of Maintenance_Cycle__c:'+ Integer.valueOf(pod.Maintenance_Cycle__c));
+                Map_Of_Products.put(pod.Id, Integer.valueOf(pod.Maintenance_Cycle__c));
+            }
+        }
+        
+        for(Case cs: Applicable_Map_of_Cases.values())
+        {
+            Case New_Case = new Case();
+            New_Case.Vehicle__c = cs.Vehicle__c;
+            New_Case.Equipment__c = cs.Equipment__c;
+            New_Case.Type = 'Routine Maintenance';
+            New_Case.Subject = String.isBlank(cs.Subject) ? 'Routine Maintenance Request' : cs.Subject;
+            New_Case.Date_Reported__c=Date.today();
+            New_Case.Status= 'New';
+            New_Case.Product__c = cs.Product__c;
+            New_Case.AccountId = cs.AccountId;
+            New_Case.ContactId = cs.ContactId;
+            New_Case.AssetId = cs.AssetId;
+            New_Case.Origin = cs.Origin;
+            New_Case.Reason = cs.Reason;  
+            New_Case.Date_Due__c = (Map_Of_Products.get(cs.id)!= NULL) ? (Date.today().addDays(Integer.valueOf(Map_Of_Products.get(cs.Id))))
+                					: (Date.today());
+            NewCaseList.add(New_Case);
+        }
+		insert NewCaseList;       
+    }        
+    
+}
