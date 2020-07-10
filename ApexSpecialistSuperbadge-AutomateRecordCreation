@@ -4,9 +4,14 @@
 trigger MaintenanceRequest on Case (before update, after update) 
 {
     // ToDo: Call MaintenanceRequestHelper.updateWorkOrders
+    
+    // Create Data Structure
     Map<Id,Case> Map_Of_Cases= new Map<Id,Case>();
     List<Case> List_Of_NewCases = new List<Case>();
     List_Of_NewCases = Trigger.New;
+    
+    //Check Trigger Context
+    //Check if the new maintenance request is type 'Repair' (if closed) or of the type 'routine maintenace'. 
     if(Trigger.isUpdate && Trigger.isAfter)
     {
         for(Case c : List_Of_NewCases)
@@ -18,6 +23,7 @@ trigger MaintenanceRequest on Case (before update, after update)
         }
     }
     
+    //Make sure your trigger does not call/run helper class for any random update.
     if(Map_Of_Cases.size()>0)
     {
         System.debug('*****Call the updateWorkOrders() menthod from the MaintenanceRequestHelper helper class*****');
