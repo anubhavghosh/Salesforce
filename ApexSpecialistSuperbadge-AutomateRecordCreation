@@ -39,19 +39,22 @@ public with sharing class MaintenanceRequestHelper {
     public static void updateWorkOrders(Map<Id,Case> Applicable_Map_of_Cases) 
     {
         System.debug('*******Inside MaintenanceRequestHelper Class*******');
+        
+        //Create Required Data Structure
         Map<Id,Integer> Map_Of_Products = new Map<Id,Integer>();
         List<Product2> List_of_Products = [SELECT ID, Maintenance_Cycle__c from Product2];
         List<Case> NewCaseList = new List<Case>();
-       
+        
+        //Get a map of product ids and their maintenance cycle
         for(Product2 pod : List_of_Products)
         {
             if(pod.Maintenance_Cycle__c!=NULL)
             {
-                System.Debug('Integer Value of Maintenance_Cycle__c:'+ Integer.valueOf(pod.Maintenance_Cycle__c));
                 Map_Of_Products.put(pod.Id, Integer.valueOf(pod.Maintenance_Cycle__c));
             }
         }
         
+        //Operate on the applicables cases passed from the trigger
         for(Case cs: Applicable_Map_of_Cases.values())
         {
             Case New_Case = new Case();
